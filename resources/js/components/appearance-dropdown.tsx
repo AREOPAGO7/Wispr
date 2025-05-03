@@ -50,4 +50,4 @@ export default function AppearanceToggleDropdown({ className = '', ...props }: H
             </DropdownMenu>
         </div>
     );
-}
+} 

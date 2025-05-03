@@ -8,6 +8,14 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+Route::get('/deals', function () {
+    return Inertia::render('deals');
+})->name('deals');
+
+Route::get('/chat', function () {
+    return Inertia::render('chat');
+})->name('chat');
+
 Route::middleware([
     'auth',
     ValidateSessionWithWorkOS::class,

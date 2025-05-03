@@ -1,23 +1,14 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
 import { useState } from "react"
-import { FilterTabs } from "../components/skill-swap/filter-tabs"
-import { PostList } from "../components/skill-swap/post-list"
-import { mockPosts } from "../data/mock-posts"
+import { ThemeProvider } from "@/components/theme-provider"
+import { FilterTabs } from "./components/skill-swap/filter-tabs"
+import { PostList } from "./components/skill-swap/post-list"
+import { mockPosts } from "./data/mock-posts"
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Home',
-        href: '/home',
-    },
-];
-
-export default function Dashboard() {
-    const [likedPosts, setLikedPosts] = useState<number[]>([])
+export default function SkillSwapHome() {
+  const [likedPosts, setLikedPosts] = useState<number[]>([])
   const [repostedPosts, setRepostedPosts] = useState<number[]>([])
   const [savedPosts, setSavedPosts] = useState<number[]>([])
+
   const handleLike = (postId: number) => {
     if (likedPosts.includes(postId)) {
       setLikedPosts(likedPosts.filter((id) => id !== postId))
@@ -46,12 +37,10 @@ export default function Dashboard() {
   const hotPosts = [...mockPosts]
   const newPosts = [...mockPosts].sort((a, b) => a.id - b.id)
   const topPosts = [...mockPosts].sort((a, b) => b.likes - a.likes)
-    return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="flex justify-center">
-                <div className="w-full max-w-5xl mx-auto p-4">
+
+  return (
+    <ThemeProvider defaultTheme="light" storageKey="skill-swap-theme">
+      <div className="w-full max-w-4xl mx-auto p-4">
         <FilterTabs
           hotContent={
             <PostList
@@ -88,9 +77,6 @@ export default function Dashboard() {
           }
         />
       </div>
-                </div>
-                
-            </div>
-        </AppLayout>
-    );
+    </ThemeProvider>
+  )
 }

@@ -1,11 +1,11 @@
-import { cn } from '@/lib/utils';
-import { type LucideProps } from 'lucide-react';
-import { type ComponentType } from 'react';
+import { LucideIcon } from 'lucide-react';
+import { HTMLAttributes } from 'react';
 
-interface IconProps extends Omit<LucideProps, 'ref'> {
-    iconNode: ComponentType<LucideProps>;
+interface IconProps extends HTMLAttributes<HTMLDivElement> {
+    icon: LucideIcon;
+    size?: number;
 }
 
-export function Icon({ iconNode: IconComponent, className, ...props }: IconProps) {
-    return <IconComponent className={cn('h-4 w-4', className)} {...props} />;
-}
+export function Icon({ icon: Icon, size = 20, className = '', ...props }: IconProps) {
+    return <Icon className={className} size={size} {...props} />;
+} 
