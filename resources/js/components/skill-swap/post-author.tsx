@@ -1,9 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Clock } from "lucide-react"
-import type { Author } from "../../types/skill-swap"
 
 interface PostAuthorProps {
-  author: Author
+  author: {
+    name: string
+    avatar: string | null
+  }
   timePosted: string
 }
 
@@ -18,7 +20,7 @@ export function PostAuthor({ author, timePosted }: PostAuthorProps) {
         <div className="font-medium">{author.name}</div>
         <div className="text-xs text-muted-foreground flex items-center gap-1">
           <Clock className="w-3 h-3" />
-          {timePosted}
+          {new Date(timePosted).toLocaleDateString()}
         </div>
       </div>
     </div>

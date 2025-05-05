@@ -8,9 +8,9 @@ export function PostTags({ tags }: PostTagsProps) {
   if (!tags.length) return null
 
   return (
-    <div className="flex flex-wrap gap-1 mt-2">
+    <div className="flex flex-wrap gap-2">
       {tags.map((tag) => (
-        <Badge key={tag} variant="secondary" className="text-xs">
+        <Badge key={tag} variant="secondary" className="text-sm px-2 py-0.5">
           {tag}
         </Badge>
       ))}

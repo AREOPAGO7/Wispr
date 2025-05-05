@@ -49,8 +49,14 @@ export function SkillSwapPost({ post, isLiked, isReposted, isSaved, onLike, onRe
 
       <CardContent className="pb-2">
         <CardDescription className="text-sm mb-3">{post.description}</CardDescription>
-        <PostMedia image={post.image} video={post.video} />
-        <PostTags tags={post.tags} />
+        {post.image || post.video ? (
+          <>
+            <PostMedia image={post.image} video={post.video} />
+            <PostTags tags={post.tags} />
+          </>
+        ) : (
+          <PostTags tags={post.tags} />
+        )}
       </CardContent>
 
       <Separator />
@@ -63,8 +69,9 @@ export function SkillSwapPost({ post, isLiked, isReposted, isSaved, onLike, onRe
           isLiked={isLiked}
           isReposted={isReposted}
           onLike={onLike}
-          onRepost={onRepost}
-        />
+          onRepost={onRepost} onCommentClick={function (): void {
+            throw new Error("Function not implemented.")
+          } }        />
       </CardFooter>
     </Card>
   )
