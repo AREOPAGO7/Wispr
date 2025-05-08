@@ -11,7 +11,7 @@ interface FilterTabsProps {
 
 export function FilterTabs({ hotContent, newContent, topContent }: FilterTabsProps) {
   return (
-    <Tabs defaultValue="hot" className="w-full mb-6">
+    <Tabs defaultValue="hot" className="w-fit mb-6">
       <div className="flex items-center justify-between mb-4">
         <TabsList className="bg-background border rounded-lg">
           <TabsTrigger

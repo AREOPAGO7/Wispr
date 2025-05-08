@@ -22,29 +22,38 @@ interface PostListProps {
             name: string;
         }>;
         likes_count: number;
+        dislikes_count: number;
         reposts_count: number;
         saves_count: number;
-        interactions: Array<{
-            liked: boolean;
-            reposted: boolean;
-            saved: boolean;
+        isLiked: boolean;
+        isDisliked: boolean;
+        isReposted: boolean;
+        isSaved: boolean;
+        comments: Array<{
+            id: number;
+            content: string;
+            created_at: string;
+            user: {
+                id: number;
+                name: string;
+                avatar: string | null;
+            };
         }>;
     }>;
-    likedPosts: number[];
-    repostedPosts: number[];
-    savedPosts: number[];
     onLike: (id: number) => void;
+    onDislike: (id: number) => void;
     onRepost: (id: number) => void;
     onSave: (id: number) => void;
 }
 
-export function PostList({ posts, likedPosts, repostedPosts, savedPosts, onLike, onRepost, onSave }: PostListProps) {
+export function PostList({ posts, onLike, onDislike, onRepost, onSave }: PostListProps) {
     return (
         <div className="space-y-4">
             {posts.map((post) => (
                 <PostCard
                 key={post.id}
                 id={post.id}
+                uid={post.uid}
                 title={post.title}
                 description={post.description}
                 offering={post.offering}
@@ -57,15 +66,20 @@ export function PostList({ posts, likedPosts, repostedPosts, savedPosts, onLike,
                 }}
                 tags={post.tags.map(tag => tag.name)}
                 likes={post.likes_count}
+                dislikes={post.dislikes_count}
                 reposts={post.reposts_count}
                 saves={post.saves_count}
                 timePosted={post.created_at}
-                isLiked={likedPosts.includes(post.id)}
-                isReposted={repostedPosts.includes(post.id)}
-                isSaved={savedPosts.includes(post.id)}
+                isLiked={post.isLiked}
+                isDisliked={post.isDisliked}
+                isReposted={post.isReposted}
+                isSaved={post.isSaved}
                 onLike={() => onLike(post.id)}
+                onDislike={() => onDislike(post.id)}
                 onRepost={() => onRepost(post.id)}
-                onSave={() => onSave(post.id)} comments={[]}                />
+                onSave={() => onSave(post.id)} 
+                comments={post.comments} 
+                />
             ))}
         </div>
     )

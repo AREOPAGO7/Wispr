@@ -27,6 +27,9 @@ class SwapController extends Controller
                 'interactions as likes_count' => function ($query) {
                     $query->where('type', 'like');
                 },
+                'interactions as dislikes_count' => function ($query) {
+                    $query->where('type', 'dislike');
+                },
                 'interactions as reposts_count' => function ($query) {
                     $query->where('type', 'repost');
                 },
@@ -75,6 +78,7 @@ class SwapController extends Controller
             $swaps->getCollection()->transform(function ($swap) use ($userInteractions) {
                 $interactions = $userInteractions->get($swap->id, collect());
                 $swap->isLiked = $interactions->contains('type', 'like');
+                $swap->isDisliked = $interactions->contains('type', 'dislike');
                 $swap->isReposted = $interactions->contains('type', 'repost');
                 $swap->isSaved = $interactions->contains('type', 'save');
                 return $swap;
@@ -349,7 +353,9 @@ class SwapController extends Controller
         ]);
 
         if ($request->wantsJson()) {
-            return response()->json($comment->load('user'));
+            return response()->json([
+                'comment' => $comment->load('user')
+            ]);
         }
 
         return back();
@@ -363,6 +369,39 @@ class SwapController extends Controller
 
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Comment deleted']);
+        }
+
+        return back();
+    }
+
+    public function dislike(Request $request, Swap $swap)
+    {
+        // Remove like if exists (can't like and dislike at the same time)
+        SwapInteraction::where([
+            'user_id' => Auth::id(),
+            'swap_id' => $swap->id,
+            'type' => 'like'
+        ])->delete();
+
+        $interaction = SwapInteraction::firstOrNew([
+            'user_id' => Auth::id(),
+            'swap_id' => $swap->id,
+            'type' => 'dislike'
+        ]);
+
+        if ($interaction->exists) {
+            $interaction->delete();
+            $isDisliked = false;
+        } else {
+            $interaction->save();
+            $isDisliked = true;
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'dislikes_count' => $swap->interactions()->where('type', 'dislike')->count(),
+                'is_disliked' => $isDisliked,
+            ]);
         }
 
         return back();

@@ -4,9 +4,20 @@ import { useState } from "react"
 import { router } from "@inertiajs/react"
 import { route } from "ziggy-js"
 
+interface Comment {
+    id: number;
+    content: string;
+    created_at: string;
+    user: {
+        id: number;
+        name: string;
+        avatar: string | null;
+    };
+}
+
 interface CommentFormProps {
-    swapId: number
-    onCommentAdded?: (comment: any) => void
+    swapId: number;
+    onCommentAdded?: (comment: Comment) => void;
 }
 
 export function CommentForm({ swapId, onCommentAdded }: CommentFormProps) {
@@ -18,10 +29,19 @@ export function CommentForm({ swapId, onCommentAdded }: CommentFormProps) {
 
         router.post(route('swaps.comments.store', { swap: swapId }), { content }, {
             preserveScroll: true,
-            onSuccess: (response) => {
+            onSuccess: (response: any) => {
                 setContent("")
                 if (onCommentAdded && response.props.comment) {
-                    onCommentAdded(response.props.comment)
+                    onCommentAdded({
+                        id: response.props.comment.id,
+                        content: response.props.comment.content,
+                        created_at: response.props.comment.created_at,
+                        user: {
+                            id: response.props.comment.user.id,
+                            name: response.props.comment.user.name,
+                            avatar: response.props.comment.user.avatar
+                        }
+                    })
                 }
             },
         })

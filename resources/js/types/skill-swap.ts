@@ -14,6 +14,7 @@ export interface Author {
     image: string | null
     video: string | null
     likes: number
+    dislikes: number
     comments: number
     reposts: number
     timePosted: string

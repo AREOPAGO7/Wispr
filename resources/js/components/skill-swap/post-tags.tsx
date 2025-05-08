@@ -10,7 +10,7 @@ export function PostTags({ tags }: PostTagsProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {tags.map((tag) => (
-        <Badge key={tag} variant="secondary" className="text-sm px-2 py-0.5">
+        <Badge key={tag} variant="secondary" className="text- px-3 py-1">
           {tag}
         </Badge>
       ))}

@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator"
 import { MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PostAuthor } from "./post-author"
-import { PostMedia } from "@/components/post-media"
+import { PostMedia } from "./post-media"
 import { PostTags } from "./post-tags"
 import { SkillBadges } from "./skill-badges"
 import { PostActions } from "./post-actions"
@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 interface PostCardProps {
     id: number;
+    uid: string;
     title: string;
     description: string;
     offering: string;
@@ -30,13 +31,16 @@ interface PostCardProps {
     };
     tags: string[];
     likes: number;
+    dislikes: number;
     reposts: number;
     saves: number;
     timePosted: string;
     isLiked: boolean;
+    isDisliked: boolean;
     isReposted: boolean;
     isSaved: boolean;
     onLike: () => void;
+    onDislike: () => void;
     onRepost: () => void;
     onSave: () => void;
     comments: Array<{
@@ -53,6 +57,7 @@ interface PostCardProps {
 
 export function PostCard({
     id,
+    uid,
     title,
     description,
     offering,
@@ -62,13 +67,16 @@ export function PostCard({
     author,
     tags,
     likes,
+    dislikes,
     reposts,
     saves,
     timePosted,
     isLiked,
+    isDisliked,
     isReposted,
     isSaved,
     onLike,
+    onDislike,
     onRepost,
     onSave,
     comments = [],
@@ -77,22 +85,65 @@ export function PostCard({
     const [showComments, setShowComments] = useState(false)
     const [showNewComment, setShowNewComment] = useState(false)
     const [localComments, setLocalComments] = useState(comments)
+    const [localLikes, setLocalLikes] = useState(likes)
+    const [localDislikes, setLocalDislikes] = useState(dislikes)
+    const [localReposts, setLocalReposts] = useState(reposts)
+    const [localIsLiked, setLocalIsLiked] = useState(isLiked)
+    const [localIsDisliked, setLocalIsDisliked] = useState(isDisliked)
+    const [localIsReposted, setLocalIsReposted] = useState(isReposted)
 
     useEffect(() => {
         setLocalComments(comments)
-    }, [comments])
+        setLocalLikes(likes)
+        setLocalDislikes(dislikes)
+        setLocalReposts(reposts)
+        setLocalIsLiked(isLiked)
+        setLocalIsDisliked(isDisliked)
+        setLocalIsReposted(isReposted)
+    }, [comments, likes, dislikes, reposts, isLiked, isDisliked, isReposted])
 
     const handleLike = () => {
-        router.post(route('swaps.like', { swap: id }), {}, {
+        router.post(`/swaps/${uid}/like`, {}, {
             preserveScroll: true,
-            onSuccess: () => onLike(),
+            onSuccess: () => {
+                setLocalIsLiked(!localIsLiked)
+                if (localIsDisliked) {
+                    setLocalIsDisliked(false)
+                    setLocalDislikes(prev => prev - 1)
+                }
+                onLike()
+            },
+        });
+    };
+
+    const handleDislike = () => {
+        router.post(`/swaps/${uid}/dislike`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setLocalIsDisliked(!localIsDisliked)
+                if (localIsLiked) {
+                    setLocalIsLiked(false)
+                    setLocalLikes(prev => prev - 1)
+                }
+                onDislike()
+            },
         });
     };
 
     const handleRepost = () => {
-        router.post(route('swaps.repost', { swap: id }), {}, {
+        router.post(`/swaps/${uid}/repost`, {}, {
             preserveScroll: true,
-            onSuccess: () => onRepost(),
+            onSuccess: () => {
+                setLocalIsReposted(!localIsReposted)
+                onRepost()
+            },
+        });
+    };
+
+    const handleSave = () => {
+        router.post(`/swaps/${uid}/save`, {}, {
+            preserveScroll: true,
+            onSuccess: () => onSave(),
         });
     };
 
@@ -101,13 +152,22 @@ export function PostCard({
     }
 
     const handleCommentAdded = (newComment: any) => {
-        setLocalComments(prev => [...prev, newComment])
+        setLocalComments(prev => [...prev, {
+            id: newComment.id,
+            content: newComment.content,
+            created_at: newComment.created_at,
+            user: {
+                id: newComment.user.id,
+                name: newComment.user.name,
+                avatar: newComment.user.avatar
+            }
+        }])
         setShowNewComment(false)
     }
 
     return (
         <>
-            <Card className="overflow-hidden border-2 hover:border-primary/20 transition-all duration-200">
+            <Card className="overflow-hidden border-2 hover:border-primary/20 transition-all duration-200 max-w-3xl">
                 <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                         <PostAuthor author={author} timePosted={timePosted} />
@@ -120,7 +180,7 @@ export function PostCard({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={onSave}>{isSaved ? "Unsave" : "Save"} post</DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleSave}>{isSaved ? "Unsave" : "Save"} post</DropdownMenuItem>
                                 <DropdownMenuItem>Report</DropdownMenuItem>
                                 <DropdownMenuItem>Hide</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -141,12 +201,15 @@ export function PostCard({
 
                 <CardFooter className="py-2 px-6 flex justify-between">
                     <PostActions
-                        likes={likes}
+                        likes={localLikes}
+                        dislikes={localDislikes}
                         comments={localComments.length}
-                        reposts={reposts}
-                        isLiked={isLiked}
-                        isReposted={isReposted}
+                        reposts={localReposts}
+                        isLiked={localIsLiked}
+                        isDisliked={localIsDisliked}
+                        isReposted={localIsReposted}
                         onLike={handleLike}
+                        onDislike={handleDislike}
                         onRepost={handleRepost}
                         onCommentClick={handleCommentClick}
                     />
@@ -156,7 +219,7 @@ export function PostCard({
                     <div className="border-t">
                         <div className="max-h-[300px] overflow-y-auto p-4 space-y-4">
                             {localComments.length > 0 ? (
-                                <CommentList comments={localComments} currentUserId={auth?.user?.id} />
+                                <CommentList comments={localComments} currentUserId={auth?.user?.id} swapId={id} />
                             ) : (
                                 <p className="text-sm text-muted-foreground text-center">No comments yet</p>
                             )}

@@ -27,10 +27,12 @@ interface Swap {
         name: string;
     }>;
     likes_count: number;
+    dislikes_count: number;
     reposts_count: number;
     saves_count: number;
     interactions: Array<{
         liked: boolean;
+        disliked: boolean;
         reposted: boolean;
         saved: boolean;
     }>;
@@ -63,6 +65,7 @@ export default function Home() {
     const { swaps = { data: [] }, filters = {} } = page.props;
     
     const [likedPosts, setLikedPosts] = useState<number[]>([])
+    const [dislikedPosts, setDislikedPosts] = useState<number[]>([])
     const [repostedPosts, setRepostedPosts] = useState<number[]>([])
     const [savedPosts, setSavedPosts] = useState<number[]>([])
 
@@ -83,6 +86,26 @@ export default function Home() {
             }
         } catch (error) {
             console.error('Error liking swap:', error);
+        }
+    }
+
+    const handleDislike = async (swapId: number) => {
+        try {
+            const response = await fetch(`/swaps/${swapId}/dislike`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+            });
+            const data = await response.json();
+            if (data.is_disliked) {
+                setDislikedPosts([...dislikedPosts, swapId]);
+            } else {
+                setDislikedPosts(dislikedPosts.filter(id => id !== swapId));
+            }
+        } catch (error) {
+            console.error('Error disliking swap:', error);
         }
     }
 
@@ -146,9 +169,11 @@ export default function Home() {
                                 <PostList
                                     posts={hotSwaps}
                                     likedPosts={likedPosts}
+                                    dislikedPosts={dislikedPosts}
                                     repostedPosts={repostedPosts}
                                     savedPosts={savedPosts}
                                     onLike={handleLike}
+                                    onDislike={handleDislike}
                                     onRepost={handleRepost}
                                     onSave={handleSave}
                                 />
@@ -157,9 +182,11 @@ export default function Home() {
                                 <PostList
                                     posts={newSwaps}
                                     likedPosts={likedPosts}
+                                    dislikedPosts={dislikedPosts}
                                     repostedPosts={repostedPosts}
                                     savedPosts={savedPosts}
                                     onLike={handleLike}
+                                    onDislike={handleDislike}
                                     onRepost={handleRepost}
                                     onSave={handleSave}
                                 />
@@ -168,9 +195,11 @@ export default function Home() {
                                 <PostList
                                     posts={topSwaps}
                                     likedPosts={likedPosts}
+                                    dislikedPosts={dislikedPosts}
                                     repostedPosts={repostedPosts}
                                     savedPosts={savedPosts}
                                     onLike={handleLike}
+                                    onDislike={handleDislike}
                                     onRepost={handleRepost}
                                     onSave={handleSave}
                                 />

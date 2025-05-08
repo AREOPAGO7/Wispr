@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import { router } from "@inertiajs/react"
+import { route } from "ziggy-js"
 
 interface Comment {
     id: number
@@ -17,12 +18,13 @@ interface Comment {
 interface CommentListProps {
     comments: Comment[]
     currentUserId?: number
+    swapId: number
 }
 
-export function CommentList({ comments, currentUserId }: CommentListProps) {
+export function CommentList({ comments, currentUserId, swapId }: CommentListProps) {
     const handleDelete = (commentId: number) => {
         if (confirm('Are you sure you want to delete this comment?')) {
-            router.delete(`/comments/${commentId}`)
+            router.delete(route('swaps.comments.destroy', { swap: swapId, comment: commentId }))
         }
     }
 
@@ -38,7 +40,25 @@ export function CommentList({ comments, currentUserId }: CommentListProps) {
                         <div className="flex items-center justify-between">
                             <div className="font-medium">{comment.user.name}</div>
                             <div className="text-xs text-muted-foreground">
-                                {new Date(comment.created_at).toLocaleDateString()}
+                                {(() => {
+                                    const date = new Date(comment.created_at);
+                                    const now = new Date();
+                                    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+                                    
+                                    if (diffInSeconds < 60) {
+                                        return 'just now';
+                                    } else if (diffInSeconds < 3600) {
+                                        const minutes = Math.floor(diffInSeconds / 60);
+                                        return `${minutes} ${minutes === 1 ? 'min' : 'mins'} ago`;
+                                    } else if (diffInSeconds < 86400) {
+                                        const hours = Math.floor(diffInSeconds / 3600);
+                                        return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+                                    } else if (diffInSeconds < 172800) {
+                                        return 'yesterday';
+                                    } else {
+                                        return date.toLocaleDateString();
+                                    }
+                                })()}
                             </div>
                         </div>
                         <p className="text-sm mt-1">{comment.content}</p>

@@ -9,19 +9,31 @@ import { PostMedia } from "./post-media"
 import { PostTags } from "./post-tags"
 import { SkillBadges } from "./skill-badges"
 import { PostActions } from "./post-actions"
-import type { Post } from "../../types/skill-swap"
+import type { Post } from "@/types/skill-swap"
 
 interface SkillSwapPostProps {
   post: Post
   isLiked: boolean
+  isDisliked: boolean
   isReposted: boolean
   isSaved: boolean
   onLike: () => void
+  onDislike: () => void
   onRepost: () => void
   onSave: () => void
 }
 
-export function SkillSwapPost({ post, isLiked, isReposted, isSaved, onLike, onRepost, onSave }: SkillSwapPostProps) {
+export function SkillSwapPost({ 
+  post, 
+  isLiked, 
+  isDisliked, 
+  isReposted, 
+  isSaved, 
+  onLike, 
+  onDislike, 
+  onRepost, 
+  onSave 
+}: SkillSwapPostProps) {
   return (
     <Card className="overflow-hidden border-2 hover:border-primary/20 transition-all duration-200">
       <CardHeader className="pb-2">
@@ -49,14 +61,8 @@ export function SkillSwapPost({ post, isLiked, isReposted, isSaved, onLike, onRe
 
       <CardContent className="pb-2">
         <CardDescription className="text-sm mb-3">{post.description}</CardDescription>
-        {post.image || post.video ? (
-          <>
-            <PostMedia image={post.image} video={post.video} />
-            <PostTags tags={post.tags} />
-          </>
-        ) : (
-          <PostTags tags={post.tags} />
-        )}
+        <PostMedia image={post.image} video={post.video} />
+        <PostTags tags={post.tags} />
       </CardContent>
 
       <Separator />
@@ -64,11 +70,14 @@ export function SkillSwapPost({ post, isLiked, isReposted, isSaved, onLike, onRe
       <CardFooter className="py-2 px-6 flex justify-between">
         <PostActions
           likes={post.likes}
+          dislikes={post.dislikes}
           comments={post.comments}
           reposts={post.reposts}
           isLiked={isLiked}
+          isDisliked={isDisliked}
           isReposted={isReposted}
           onLike={onLike}
+          onDislike={onDislike}
           onRepost={onRepost} onCommentClick={function (): void {
             throw new Error("Function not implemented.")
           } }        />
