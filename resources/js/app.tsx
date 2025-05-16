@@ -1,3 +1,4 @@
+import './bootstrap';
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
@@ -15,9 +16,7 @@ createInertiaApp({
 
         root.render(<App {...props} />);
     },
-    progress: {
-        color: '#4B5563',
-    },
+    progress: false,
 });
 
 // This will set light / dark mode on load...

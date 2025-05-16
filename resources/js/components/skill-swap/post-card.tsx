@@ -201,6 +201,7 @@ export function PostCard({
 
                 <CardFooter className="py-2 px-6 flex justify-between">
                     <PostActions
+                        swap={{ id, uid }}
                         likes={localLikes}
                         dislikes={localDislikes}
                         comments={localComments.length}

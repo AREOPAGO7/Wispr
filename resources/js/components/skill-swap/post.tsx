@@ -69,6 +69,7 @@ export function SkillSwapPost({
 
       <CardFooter className="py-2 px-6 flex justify-between">
         <PostActions
+          swap={{ id: post.id }}
           likes={post.likes}
           dislikes={post.dislikes}
           comments={post.comments}
@@ -78,9 +79,9 @@ export function SkillSwapPost({
           isReposted={isReposted}
           onLike={onLike}
           onDislike={onDislike}
-          onRepost={onRepost} onCommentClick={function (): void {
-            throw new Error("Function not implemented.")
-          } }        />
+          onRepost={onRepost}
+          onCommentClick={() => {}}
+        />
       </CardFooter>
     </Card>
   )

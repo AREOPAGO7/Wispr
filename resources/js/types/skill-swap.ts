@@ -6,6 +6,7 @@ export interface Author {
   
   export interface Post {
     id: number
+    uid: string
     author: Author
     title: string
     description: string

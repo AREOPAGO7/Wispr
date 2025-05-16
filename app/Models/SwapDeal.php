@@ -22,6 +22,11 @@ class SwapDeal extends Model
         'report_reason',
     ];
 
+    protected $casts = [
+        'initiator_rating_score' => 'integer',
+        'acceptor_rating_score' => 'integer',
+    ];
+
     public function swap(): BelongsTo
     {
         return $this->belongsTo(Swap::class);
