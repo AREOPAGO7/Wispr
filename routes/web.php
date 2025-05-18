@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('swaps/{swap:uid}/dislike', [SwapController::class, 'dislike'])->name('swaps.dislike');
     Route::post('swaps/{swap:uid}/repost', [SwapController::class, 'repost'])->name('swaps.repost');
     Route::post('swaps/{swap:uid}/save', [SwapController::class, 'save'])->name('swaps.save');
+    
     Route::post('swaps/{swap:id}/accept', [SwapController::class, 'accept'])->name('swaps.accept');
     Route::post('swaps/{swap:id}/complete', [SwapController::class, 'complete'])->name('swaps.complete');
     Route::post('swaps/{swap:id}/report', [SwapController::class, 'report'])->name('swaps.report');

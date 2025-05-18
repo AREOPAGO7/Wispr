@@ -101,6 +101,7 @@ export default function Deals({ deals }: DealsProps) {
   const activeDeals = deals.filter(deal => deal.status === 'in_progress');
   const pendingDeals = deals.filter(deal => deal.status === 'pending');
   const completedDeals = deals.filter(deal => deal.status === 'completed');
+  const reportedDeals = deals.filter(deal => deal.status === 'reported');
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -118,6 +119,7 @@ export default function Deals({ deals }: DealsProps) {
               <TabsTrigger value="active">Active</TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
               <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsTrigger value="reported">Reported</TabsTrigger>
             </TabsList>
 
             {/* All deals tab */}
@@ -152,6 +154,17 @@ export default function Deals({ deals }: DealsProps) {
               )}
             </TabsContent>
 
+            <TabsContent value="reported" className="space-y-6">
+              {reportedDeals.length > 0 ? (
+                reportedDeals.map((deal) => (
+                  <DealCard key={deal.id} deal={deal} />
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-10">No reported deals</p>
+              )}
+            </TabsContent>
+
+
             <TabsContent value="completed" className="space-y-6">
               {completedDeals.length > 0 ? (
                 completedDeals.map((deal) => (
@@ -162,6 +175,8 @@ export default function Deals({ deals }: DealsProps) {
               )}
             </TabsContent>
           </Tabs>
+
+          
         </div>
       </div>
     </AppLayout>

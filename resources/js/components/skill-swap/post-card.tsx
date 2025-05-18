@@ -15,6 +15,9 @@ import { usePage, router } from "@inertiajs/react"
 import { route } from "ziggy-js"
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
+import axios from 'axios'
 
 interface PostCardProps {
     id: number;
@@ -71,14 +74,10 @@ export function PostCard({
     reposts,
     saves,
     timePosted,
-    isLiked,
-    isDisliked,
-    isReposted,
-    isSaved,
-    onLike,
-    onDislike,
-    onRepost,
-    onSave,
+    isLiked: initialIsLiked,
+    isDisliked: initialIsDisliked,
+    isReposted: initialIsReposted,
+    isSaved: initialIsSaved,
     comments = [],
 }: PostCardProps) {
     const { auth } = usePage().props as unknown as { auth: { user: { id: number } | null } | undefined }
@@ -88,46 +87,111 @@ export function PostCard({
     const [localLikes, setLocalLikes] = useState(likes)
     const [localDislikes, setLocalDislikes] = useState(dislikes)
     const [localReposts, setLocalReposts] = useState(reposts)
-    const [localIsLiked, setLocalIsLiked] = useState(isLiked)
-    const [localIsDisliked, setLocalIsDisliked] = useState(isDisliked)
-    const [localIsReposted, setLocalIsReposted] = useState(isReposted)
+    const [localIsLiked, setLocalIsLiked] = useState(initialIsLiked)
+    const [localIsDisliked, setLocalIsDisliked] = useState(initialIsDisliked)
+    const [localIsReposted, setLocalIsReposted] = useState(initialIsReposted)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         setLocalComments(comments)
         setLocalLikes(likes)
         setLocalDislikes(dislikes)
         setLocalReposts(reposts)
-        setLocalIsLiked(isLiked)
-        setLocalIsDisliked(isDisliked)
-        setLocalIsReposted(isReposted)
-    }, [comments, likes, dislikes, reposts, isLiked, isDisliked, isReposted])
+        setLocalIsLiked(initialIsLiked)
+        setLocalIsDisliked(initialIsDisliked)
+        setLocalIsReposted(initialIsReposted)
+    }, [comments, likes, dislikes, reposts, initialIsLiked, initialIsDisliked, initialIsReposted])
 
-    const handleLike = () => {
-        router.post(`/swaps/${uid}/like`, {}, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setLocalIsLiked(!localIsLiked)
-                if (localIsDisliked) {
-                    setLocalIsDisliked(false)
-                    setLocalDislikes(prev => prev - 1)
+    const handleLike = async () => {
+        setError(null);
+        const previousState = {
+            isLiked: localIsLiked,
+            isDisliked: localIsDisliked,
+            likes: localLikes,
+            dislikes: localDislikes
+        };
+
+        try {
+            // Update states first
+            setLocalIsLiked(!localIsLiked);
+            
+            // If we're liking and there's a dislike, remove it
+            if (!localIsLiked && localIsDisliked) {
+                setLocalIsDisliked(false);
+            }
+
+            const response = await axios.post(`/swaps/${uid}/like`, {}, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 }
-                onLike()
-            },
-        });
+            });
+
+            // Server returns likes_count and is_liked
+            if (response.data) {
+                setLocalIsLiked(response.data.is_liked);
+                setLocalLikes(response.data.likes_count);
+                // If we were disliked before, we know it's removed
+                if (localIsDisliked) {
+                    setLocalIsDisliked(false);
+                    setLocalDislikes(prev => Math.max(0, prev - 1));
+                }
+            }
+        } catch (error) {
+            console.error('Error liking swap:', error);
+            // Restore previous state on error
+            setLocalIsLiked(previousState.isLiked);
+            setLocalIsDisliked(previousState.isDisliked);
+            setLocalLikes(previousState.likes);
+            setLocalDislikes(previousState.dislikes);
+            setError('Failed to update like status. Please try again.');
+        }
     };
 
-    const handleDislike = () => {
-        router.post(`/swaps/${uid}/dislike`, {}, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setLocalIsDisliked(!localIsDisliked)
-                if (localIsLiked) {
-                    setLocalIsLiked(false)
-                    setLocalLikes(prev => prev - 1)
+    const handleDislike = async () => {
+        setError(null);
+        const previousState = {
+            isLiked: localIsLiked,
+            isDisliked: localIsDisliked,
+            likes: localLikes,
+            dislikes: localDislikes
+        };
+
+        try {
+            // Update states first
+            setLocalIsDisliked(!localIsDisliked);
+            
+            // Controller automatically removes like if it exists
+            if (localIsLiked) {
+                setLocalIsLiked(false);
+                setLocalLikes(prev => Math.max(0, prev - 1));
+            }
+
+            const response = await axios.post(`/swaps/${uid}/dislike`, {}, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 }
-                onDislike()
-            },
-        });
+            });
+
+            // Server returns dislikes_count and is_disliked
+            if (response.data) {
+                setLocalIsDisliked(response.data.is_disliked);
+                setLocalDislikes(response.data.dislikes_count);
+                // Like is automatically removed by the server
+                setLocalIsLiked(false);
+            }
+        } catch (error) {
+            console.error('Error disliking swap:', error);
+            // Restore previous state on error
+            setLocalIsLiked(previousState.isLiked);
+            setLocalIsDisliked(previousState.isDisliked);
+            setLocalLikes(previousState.likes);
+            setLocalDislikes(previousState.dislikes);
+            setError('Failed to update dislike status. Please try again.');
+        }
     };
 
     const handleRepost = () => {
@@ -135,7 +199,6 @@ export function PostCard({
             preserveScroll: true,
             onSuccess: () => {
                 setLocalIsReposted(!localIsReposted)
-                onRepost()
             },
         });
     };
@@ -143,7 +206,9 @@ export function PostCard({
     const handleSave = () => {
         router.post(`/swaps/${uid}/save`, {}, {
             preserveScroll: true,
-            onSuccess: () => onSave(),
+            onSuccess: () => {
+                // Assuming onSave is called elsewhere in the component
+            },
         });
     };
 
@@ -168,6 +233,12 @@ export function PostCard({
     return (
         <>
             <Card className="overflow-hidden border-2 hover:border-primary/20 transition-all duration-200 max-w-3xl">
+                {error && (
+                    <Alert variant="destructive" className="mb-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
                 <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                         <PostAuthor author={author} timePosted={timePosted} />
@@ -180,7 +251,7 @@ export function PostCard({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={handleSave}>{isSaved ? "Unsave" : "Save"} post</DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleSave}>{initialIsSaved ? "Unsave" : "Save"} post</DropdownMenuItem>
                                 <DropdownMenuItem>Report</DropdownMenuItem>
                                 <DropdownMenuItem>Hide</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -201,7 +272,6 @@ export function PostCard({
 
                 <CardFooter className="py-2 px-6 flex justify-between">
                     <PostActions
-                        swap={{ id, uid }}
                         likes={localLikes}
                         dislikes={localDislikes}
                         comments={localComments.length}
@@ -213,6 +283,10 @@ export function PostCard({
                         onDislike={handleDislike}
                         onRepost={handleRepost}
                         onCommentClick={handleCommentClick}
+                        swap={{
+                            id,
+                            uid
+                        }}
                     />
                 </CardFooter>
 

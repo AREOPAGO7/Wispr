@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowUpCircle, ArrowDownCircle, MessageCircle, Repeat2, Handshake, Share2 } from "lucide-react"
+import { ArrowUpCircle, ArrowDownCircle, MessageCircle, Repeat2, Handshake, Share2 ,ThumbsUp , ThumbsDown} from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { router } from "@inertiajs/react"
 import { useState } from "react"
@@ -51,8 +51,8 @@ export function PostActions({ swap, ...props }: PostActionsProps) {
                 className={`gap-2 cursor-pointer ${props.isLiked ? "text-[#FF6F00] hover:text-[#FF6F00]" : ""}`} 
                 onClick={props.onLike}
               >
-                <ArrowUpCircle className="h-6 w-6" />
-                <span>{props.likes}</span>
+                <ThumbsUp className={`h-6 w-6 ${props.isLiked ? "fill-[#FF6F00]" : ""}`} />
+                <span >{props.likes}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Like</TooltipContent>
@@ -66,7 +66,7 @@ export function PostActions({ swap, ...props }: PostActionsProps) {
                 className={`gap-2 cursor-pointer ${props.isDisliked ?  "text-[#FF0000] hover:text-[#FF0000]" : ""}`} 
                 onClick={props.onDislike}
               >
-                <ArrowDownCircle className="h-6 w-6" />
+                <ThumbsDown className={`h-6 w-6 ${props.isDisliked ? "fill-[#FF0000]" : ""}`} />
                 <span>{props.dislikes}</span>
               </Button>
             </TooltipTrigger>
