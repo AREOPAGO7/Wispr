@@ -1,6 +1,6 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
+import { type BreadcrumbItem as BreadcrumbItemType, type User } from '@/types';
 import { Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,13 @@ import { useState } from 'react';
 
 //navbar 
 
-export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
+interface AppSidebarHeaderProps {
+    breadcrumbs?: BreadcrumbItemType[];
+    user?: User;
+    [key: string]: any;
+}
+
+export function AppSidebarHeader({ breadcrumbs = [], user, ...props }: AppSidebarHeaderProps) {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     return (

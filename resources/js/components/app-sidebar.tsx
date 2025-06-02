@@ -2,10 +2,14 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { type NavItem } from '@/types';
+import { type NavItem, type User } from '@/types';
 import { Link } from '@inertiajs/react';
-import {Compass, Home, Handshake, MessageSquareText } from 'lucide-react';
+import { Compass, ArrowDownUp, Handshake, MessageSquareText } from 'lucide-react';
 import AppLogo from './app-logo';
+
+interface AppSidebarProps {
+    user?: User;
+}
 
 const mainNavItems: NavItem[] = [
     {
@@ -19,9 +23,9 @@ const mainNavItems: NavItem[] = [
         icon: Handshake,
     },
     {
-        title: 'Chat',
-        href: '/chat',
-        icon: MessageSquareText,
+        title: 'My Swaps',
+        href: '/my-swaps',
+        icon: ArrowDownUp,
     }
 ];
 
@@ -38,7 +42,7 @@ const footerNavItems: NavItem[] = [
     // },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ user }: AppSidebarProps) {
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>

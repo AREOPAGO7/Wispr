@@ -22,6 +22,11 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface PageProps {
+    auth: Auth;
+    [key: string]: any;
+}
+
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };

@@ -8,6 +8,7 @@ use App\Http\Controllers\SwapCommentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SwapDealController;
 use App\Http\Controllers\DealMessageController;
+use App\Http\Controllers\MySwapController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -60,6 +61,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/deals/{deal}/messages', [DealMessageController::class, 'store'])->name('deals.messages.store');
     Route::get('/deals/{deal}/messages', [DealMessageController::class, 'index'])->name('deals.messages.index');
 });
+
+// My Swaps routes
+    Route::prefix('my-swaps')->name('my-swaps.')->group(function () {
+        Route::get('/', [MySwapController::class, 'index'])->name('index');
+        Route::get('/create', [MySwapController::class, 'create'])->name('create');
+        Route::post('/', [MySwapController::class, 'store'])->name('store');
+        Route::get('/{swap}', [MySwapController::class, 'show'])->name('show');
+        Route::get('/{swap}/edit', [MySwapController::class, 'edit'])->name('edit');
+        Route::put('/{swap}', [MySwapController::class, 'update'])->name('update');
+        Route::delete('/{swap}', [MySwapController::class, 'destroy'])->name('destroy');
+    });
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
