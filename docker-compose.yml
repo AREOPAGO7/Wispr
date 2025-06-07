@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # PHP-FPM Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wispr-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - wispr-network
+
+  # Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: wispr-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - wispr-network
+    depends_on:
+      - app
+
+  # MySQL Service
+  db:
+    image: mysql:8.0
+    container_name: wispr-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ./docker/mysql/data:/var/lib/mysql
+    networks:
+      - wispr-network
+
+  # Node Service for React
+  node:
+    image: node:18-alpine
+    container_name: wispr-node
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    command: sh -c "cd admin && npm install && npm run dev"
+    ports:
+      - "5173:5173"
+    networks:
+      - wispr-network
+
+networks:
+  wispr-network:
+    driver: bridge 

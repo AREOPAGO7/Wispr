@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SwapDeal extends Model
 {
@@ -40,5 +41,10 @@ class SwapDeal extends Model
     public function acceptor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'acceptor_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(DealMessage::class, 'deal_id');
     }
 } 

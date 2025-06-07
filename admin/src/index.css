@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 0%; /* Pure black */
+    --foreground: 0 0% 100%; /* Pure white */
+    --card: 0 0% 5%; /* Very dark gray for cards */
+    --card-foreground: 0 0% 100%; /* White for card text */
+    --popover: 0 0% 5%; /* Very dark gray for popovers */
+    --popover-foreground: 0 0% 100%; /* White for popover text */
+    --primary: 0 0% 90%; /* Light gray for primary elements */
+    --primary-foreground: 0 0% 0%; /* Black for primary text */
+    --secondary: 0 0% 10%; /* Darker gray for secondary elements */
+    --secondary-foreground: 0 0% 100%; /* White for secondary text */
+    --muted: 0 0% 10%; /* Darker gray for muted elements */
+    --muted-foreground: 0 0% 70%; /* Lighter gray for muted text */
+    --accent: 0 0% 10%; /* Darker gray for accent elements */
+    --accent-foreground: 0 0% 100%; /* White for accent text */
+    --destructive: 0 62.8% 30.6%; /* Keep as is */
+    --destructive-foreground: 210 40% 98%; /* Keep as is */
+    --border: 240 3% 20%; /* Dark zinc for borders */
+    --input: 240 3% 20%; /* Dark zinc for inputs */
+    --ring: 0 0% 90%; /* Light gray for focus rings */
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
