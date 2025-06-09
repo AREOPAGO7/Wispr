@@ -14,16 +14,16 @@ export const mockSwaps: Post[] = [
     seeking: "UI/UX Design",
     image: null,
     video: null,
-    likes: 24,
-    dislikes: 0,
-    comments: 13,
-    reposts: 5,
+    likes_count: 24,
+    dislikes_count: 0,
+    comments_count: 13,
+    reposts_count: 5,
     timePosted: "5 days ago",
     tags: ["Programming", "Design", "React", "Frontend"]
   },
   {
     id: 2,
-    author: {
+    author: { 
       name: "Anas",
       avatar: "/avatars/anas.png",
       skill: "Node.js Developer"

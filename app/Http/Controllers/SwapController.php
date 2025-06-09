@@ -23,7 +23,9 @@ class SwapController extends Controller
     public function index(Request $request)
     {
         $query = Swap::with(['user', 'tags', 'comments.user'])
+            ->where('user_id', '!=', auth()->id())
             ->withCount([
+
                 'interactions as likes_count' => function ($query) {
                     $query->where('type', 'like');
                 },

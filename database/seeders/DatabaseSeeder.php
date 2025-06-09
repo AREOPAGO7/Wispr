@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Admin; // Make sure to import the Admin model
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash; // Import Hash facade
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,9 +16,12 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        \App\Models\Admin::create([
+        Admin::create([ // Use the imported Admin model directly
+            'name' => 'Main Admin', // <-- ADD THIS LINE
             'email' => 'admin@example.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            'password' => Hash::make('password'), // Use the imported Hash facade
+            'email_verified_at' => now(), // Optional: if you want to set it as verified
+            'remember_token' => \Illuminate\Support\Str::random(10), // Optional: good practice
         ]);
     }
 }

@@ -1,7 +1,6 @@
 /node_modules
+/admin/node_modules
 /public/hot
-/public/storage
-/storage/*.key
 /vendor
 .env
 .env.backup
@@ -15,4 +14,19 @@ yarn-error.log
 /.vscode
 /.git
 /.github
-/docker/mysql/data 
+
+# Temporarily ignore public/storage symlink
+/public/storage
+
+# Keep swap directory structure but ignore unnecessary files
+!/storage/app/public/
+!/storage/framework/
+!/storage/logs/
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/.gitignore
+!/storage/logs/.gitignore 

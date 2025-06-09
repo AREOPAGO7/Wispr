@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect, MouseEvent } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { useState, useRef, useEffect, MouseEvent, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react';
+import { Head, router, usePage, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, PageProps } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, CheckCircle, Send, ArrowLeft, MoreHorizontal, Handshake, AlertTriangle } from 'lucide-react';
+import { Calendar, CheckCircle, Send, ArrowLeft, MoreHorizontal, Handshake, AlertTriangle, Paperclip, X, Download, FileText, Image as ImageIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -63,7 +64,7 @@ interface DealProps {
 
 interface Message {
   id: number;
-  content: string;
+  content: string | null;
   user_id: number;
   created_at: string;
   user: {
@@ -71,6 +72,11 @@ interface Message {
     name: string;
     avatar: string | null;
   };
+  attachment_path?: string;
+  attachment_name?: string;
+  mime_type?: string;
+  is_image?: boolean;
+  size?: number;
 }
 
 // Mock chat data
@@ -95,21 +101,43 @@ const mockMessages = [
   }
 ];
 
-export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
+export default function Deal() {
+  const { props } = usePage<PageProps>();
+  const { deal, auth } = props;
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const isInitiator = deal.initiator.id === auth.user.id;
+  const isAcceptor = deal.acceptor?.id === auth.user.id;
+  
   console.log('Deal props:', { deal, isInitiator, isAcceptor });
   
   const [messages, setMessages] = useState<Message[]>([]);
-  const messagesRef = useRef<Message[]>([]);  // Add this ref to track messages
+  const messagesRef = useRef<Message[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [reportReason, setReportReason] = useState('');
   const [rating, setRating] = useState('');
   const [ratingScore, setRatingScore] = useState('');
-  const [chatWidth, setChatWidth] = useState(() => typeof window !== 'undefined' ? Math.floor(window.innerWidth / 2) : 400);
+  const [chatWidth, setChatWidth] = useState(400);
+  const [loading, setLoading] = useState(true);
+  
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [loading, setLoading] = useState(true);
+  
+  // Set initial chat width based on window size
+  useEffect(() => {
+    const handleResize = () => {
+      setChatWidth(Math.floor(window.innerWidth / 2));
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Update messagesRef when messages state changes
   useEffect(() => {
@@ -119,7 +147,7 @@ export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
 
   useEffect(() => {
     // Load initial messages
-    axios.get(route('deals.messages.index', deal.id))
+    axios.get(route('deals.messages.index', { deal: deal.id }))
       .then(response => {
         if (Array.isArray(response.data)) {
           setMessages(response.data.reverse());
@@ -151,42 +179,133 @@ export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
   };
   }, [deal.id, isInitiator]);
 
-  const handleSendMessage = () => {
-    if (message.trim() === '') return;
+  const handleSendMessage = async (content?: string) => {
+    const messageContent = content || message.trim();
+    if (!messageContent && !previewUrl) return;
 
-    // Create a temporary message object with the correct user info
-    const currentUserId = isInitiator ? deal.initiator.id : deal.acceptor.id;
-    const currentUser = isInitiator ? deal.initiator : deal.acceptor;
-    
-    const tempMessage: Message = {
-      id: Date.now(), // temporary ID
-      content: message,
-      user_id: currentUserId,
-      created_at: new Date().toISOString(),
-      user: currentUser
-    };
+    try {
+      setIsUploading(true);
+      
+      if (previewUrl && fileInputRef.current?.files?.[0]) {
+        // Handle file upload with FormData
+        const formData = new FormData();
+        formData.append('attachment', fileInputRef.current.files[0]);
+        if (messageContent) formData.append('content', messageContent);
+        
+        const response = await fetch(route('deals.messages.store', { deal: deal.id }), {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: formData,
+        });
 
-    // Update UI immediately with the temporary message
-    setMessages(prev => [...prev, tempMessage]);
-    setMessage('');
+        const result = await response.json();
+        
+        if (!response.ok || result.status === 'error') {
+          throw new Error(result.message || 'Failed to send message with attachment');
+        }
+        
+        setMessages(prev => [...prev, result.message]);
+        setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setMessage('');
+      } else if (messageContent) {
+        // Handle text message with JSON
+        const response = await fetch(route('deals.messages.store', { deal: deal.id }), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: messageContent }),
+        });
 
-    // Send to server
-    axios.post(route('deals.messages.store', deal.id), {
-      content: message
-    }).then(response => {
-      if (response.data?.message) {
-        // Replace temporary message with the real one from server
-        setMessages(prev => 
-          prev.map(msg => 
-            msg?.id === tempMessage.id ? response.data.message : msg
-          ).filter(Boolean) // Remove any undefined messages
-        );
+        const result = await response.json();
+        
+        if (!response.ok || result.status === 'error') {
+          throw new Error(result.message || 'Failed to send message');
+        }
+        
+        setMessages(prev => [...prev, result.message]);
+        setMessage('');
       }
-    }).catch(error => {
-      console.error('Failed to send message:', error);
-      // Remove the temporary message if sending failed
-      setMessages(prev => prev.filter(msg => msg?.id !== tempMessage.id));
-    });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to send message');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size should be less than 10MB');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // For all file types, set a preview state (even for non-images)
+    if (file.type.startsWith('image/')) {
+      // For images, show image preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // For non-image files, set a generic file preview
+      setPreviewUrl('file');
+      // Auto-upload the file if there's no message content
+      if (!message.trim()) {
+        handleSendMessage();
+      }
+    }
+  };
+
+  const removePreview = () => {
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const getFileIcon = (mimeType?: string) => {
+    if (!mimeType) return <FileText className="h-5 w-5" />;
+    
+    if (mimeType.startsWith('image/')) {
+      return <ImageIcon className="h-5 w-5" />;
+    }
+    
+    if (mimeType.includes('pdf')) {
+      return <FileText className="h-5 w-5 text-red-500" />;
+    }
+    
+    if (mimeType.includes('word') || mimeType.includes('document')) {
+      return <FileText className="h-5 w-5 text-blue-500" />;
+    }
+    
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+      return <FileText className="h-5 w-5 text-green-500" />;
+    }
+    
+    return <FileText className="h-5 w-5 text-gray-500" />;
+  };
+
+  const formatFileSize = (bytes: number = 0) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const handleGoBack = () => {
@@ -314,7 +433,7 @@ export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
               </Button>
                 <h1 className="text-xl font-semibold truncate">{deal.swap.title}</h1>
               <Badge variant="outline" className={getStatusColor(deal.status)}>
-                  {deal.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                  {deal.status.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
               </Badge>
             </div>
 
@@ -343,7 +462,7 @@ export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
                 </div>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
-                {deal.swap.tags.map((tag) => (
+                {deal.swap.tags.map((tag: { id: Key | null | undefined; name: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; }) => (
                   <Badge key={tag.id} variant="secondary" className="text-xs">
                     {tag.name}
                     </Badge>
@@ -543,12 +662,53 @@ export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
                           isCurrentUser
                           ? 'bg-primary text-primary-foreground' 
                           : 'bg-muted'
-                      }`}>
-                        <p className="text-sm">{msg.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
+                        }`}>
+                          {msg.content && <p className="text-sm mb-2">{msg.content}</p>}
+                          
+                          {msg.attachment_path && (
+                            <div className={`mt-2 rounded-md overflow-hidden border ${
+                              isCurrentUser ? 'border-white/20' : 'border-border'
+                            }`}>
+                              <a 
+                                href={msg.attachment_path.startsWith('http') ? msg.attachment_path : `/storage/${msg.attachment_path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 p-2 hover:bg-black/10 transition-colors"
+                                download
+                              >
+                                <div className="flex-shrink-0">
+                                  {getFileIcon(msg.mime_type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm truncate">
+                                    {msg.attachment_name || 'Download file'}
+                                  </p>
+                                  {msg.mime_type && (
+                                    <p className="text-xs opacity-70">
+                                      {msg.mime_type.split('/')[1]?.toUpperCase() || 'FILE'}
+                                      {msg.size && ` • ${formatFileSize(msg.size)}`}
+                                    </p>
+                                  )}
+                                </div>
+                                <Download className="h-4 w-4 flex-shrink-0" />
+                              </a>
+                              
+                              {msg.is_image && (
+                                <div className="relative">
+                                  <img 
+                                    src={msg.attachment_path.startsWith('http') ? msg.attachment_path : `/storage/${msg.attachment_path}`}
+                                    alt={msg.attachment_name || 'Image attachment'}
+                                    className="max-w-full max-h-64 object-contain mx-auto"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          <p className={`text-xs mt-1 ${isCurrentUser ? 'opacity-80' : 'opacity-60'}`}>
                             {formatDate(msg.created_at)}
-                      </p>
-                    </div>
+                          </p>
+                        </div>
                   </div>
                     );
                   })
@@ -556,18 +716,116 @@ export default function Deal({ deal, isInitiator, isAcceptor }: DealProps) {
             <div ref={messagesEndRef} />
           </div>
           
-              <div className="mt-4 flex gap-2">
-              <Input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Type your message..."
-                  className="flex-1"
-              />
-                <Button onClick={handleSendMessage}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+              <div className="mt-4">
+                {previewUrl && fileInputRef.current?.files?.[0] && (
+                  <div className="relative mb-2 p-3 bg-muted/30 rounded-md border border-border">
+                    <div className="flex items-start gap-3">
+                      {/* Preview thumbnail */}
+                      {previewUrl.startsWith('data:image/') ? (
+                        <div className="flex-shrink-0">
+                          <img 
+                            src={previewUrl}
+                            alt="Preview"
+                            className="h-16 w-16 rounded-md object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-md bg-muted">
+                          {getFileIcon(fileInputRef.current.files[0].type)}
+                        </div>
+                      )}
+                      
+                      {/* File info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {fileInputRef.current.files[0].name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {fileInputRef.current.files[0].type?.split('/')[1]?.toUpperCase() || 'FILE'}
+                          {fileInputRef.current.files[0].size && (
+                            <span> • {formatFileSize(fileInputRef.current.files[0].size)}</span>
+                          )}
+                        </p>
+                        <div className="mt-2">
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-xs"
+                            onClick={removePreview}
+                          >
+                            <X className="mr-1 h-3 w-3" /> Remove
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Close button */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={removePreview}
+                        aria-label="Remove file"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+                      placeholder="Type your message..."
+                      className="min-h-[40px] pr-12"
+                      disabled={isUploading}
+                    />
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      id="file-upload"
+                      className="sr-only"
+                      onChange={handleFileChange}
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <label 
+                        htmlFor="file-upload" 
+                        className={`cursor-pointer rounded-full p-2 transition-colors ${
+                          isUploading 
+                            ? 'text-muted-foreground' 
+                            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+                        }`}
+                        title={isUploading ? 'Uploading...' : 'Attach file'}
+                      >
+                        {isUploading ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        ) : (
+                          <>
+                            <Paperclip className="h-4 w-4" />
+                            <span className="sr-only">Attach file</span>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => handleSendMessage()}
+                    disabled={(!message.trim() && !previewUrl) || isUploading}
+                    className="h-10 w-10 p-0"
+                  >
+                    {isUploading ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

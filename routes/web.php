@@ -12,7 +12,7 @@ use App\Http\Controllers\MySwapController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
-})->name('home');
+})->name('welcome');
 
 Route::get('/deals', function () {
     return Inertia::render('deals');

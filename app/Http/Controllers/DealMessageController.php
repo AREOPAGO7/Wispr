@@ -11,22 +11,49 @@ class DealMessageController extends Controller
 {
     public function store(Request $request, SwapDeal $deal)
     {
-        $this->authorize('view', $deal);
+        try {
+            $this->authorize('view', $deal);
 
-        $validated = $request->validate([
-            'content' => 'required|string|max:1000'
-        ]);
+            $validated = $request->validate([
+                'content' => 'nullable|string|max:1000',
+                'attachment' => 'nullable|file|max:10240', // 10MB max
+            ]);
 
-        $message = DealMessage::create([
-            'deal_id' => $deal->id,
-            'user_id' => auth()->id(),
-            'content' => $validated['content']
-        ]);
+            $messageData = [
+                'deal_id' => $deal->id,
+                'user_id' => auth()->id(),
+                'content' => $validated['content'] ?? null,
+            ];
 
-        $message->load('user');
-        broadcast(new NewDealMessage($message))->toOthers();
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $path = $file->store('deal_attachments/' . $deal->id, 'public');
+                
+                $messageData['attachment_path'] = $path;
+                $messageData['attachment_name'] = $file->getClientOriginalName();
+                $messageData['mime_type'] = $file->getMimeType();
+                $messageData['is_image'] = str_starts_with($messageData['mime_type'], 'image/');
+                if (isset($messageData['is_image']) && $messageData['is_image']) {
+                    $messageData['size'] = $file->getSize();
+                }
+            }
 
-        return response()->json($message);
+            $message = DealMessage::create($messageData);
+            $message->load('user');
+            
+            broadcast(new NewDealMessage($message))->toOthers();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $message
+            ], 200, [], JSON_PRETTY_PRINT);
+        } catch (\Exception $e) {
+            \Log::error('Error sending message: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to send message: ' . $e->getMessage()
+            ], 500, [], JSON_PRETTY_PRINT);
+        }
     }
 
     public function index(SwapDeal $deal)
