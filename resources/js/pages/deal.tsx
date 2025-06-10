@@ -1,83 +1,59 @@
-import { useState, useRef, useEffect, MouseEvent, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react';
+import React, { useState, useRef, useEffect, MouseEvent, ReactNode, Key, ReactElement, JSXElementConstructor, ReactPortal } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, PageProps } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, CheckCircle, Send, ArrowLeft, MoreHorizontal, Handshake, AlertTriangle, Paperclip, X, Download, FileText, Image as ImageIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import axios from 'axios';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Echo from 'laravel-echo';
-import axios from 'axios';
+import { Calendar, CheckCircle, Send, ArrowLeft, MoreHorizontal, Handshake, AlertTriangle, Paperclip, X, Download, FileText, Image as ImageIcon, Code, Copy, Trash2 } from 'lucide-react';
 
-interface DealProps {
-  deal: {
+interface User {
     id: number;
-    status: 'pending' | 'in_progress' | 'completed' | 'reported';
-    initiator_accepted: boolean;
-    acceptor_accepted: boolean;
-    swap: {
-      id: number;
-      title: string;
-      description: string;
-      offering: string;
-      seeking: string;
-      tags: Array<{
-        id: number;
-        name: string;
-        created_at: string;
-        updated_at: string;
-        pivot: {
-          swap_id: number;
-          tag_id: number;
-        };
-      }>;
-      created_at: string;
-    };
-    initiator: {
-      id: number;
-      name: string;
-      avatar: string | null;
-    };
-    acceptor: {
-      id: number;
-      name: string;
-      avatar: string | null;
-    };
-    initiator_rating?: string;
-    acceptor_rating?: string;
-    initiator_rating_score?: number;
-    acceptor_rating_score?: number;
-    report_reason?: string;
-  };
-  isInitiator: boolean;
-  isAcceptor: boolean;
+    name: string;
+    email: string;
+    avatar?: string | null;
 }
 
 interface Message {
-  id: number;
-  content: string | null;
-  user_id: number;
-  created_at: string;
-  user: {
     id: number;
-    name: string;
-    avatar: string | null;
-  };
-  attachment_path?: string;
-  attachment_name?: string;
-  mime_type?: string;
-  is_image?: boolean;
-  size?: number;
+    content: string | null;
+    created_at: string;
+    user: User;
+    user_id?: number;
+    attachment_path: string;
+    attachment_name?: string | null;
+    mime_type?: string | null;
+    is_image?: boolean;
+    is_code_block?: boolean;
+    size?: number;
 }
+
+const codeBlockStyles: React.CSSProperties = {
+    backgroundColor: '#2d2d2d',
+    color: '#f8f8f2',
+    padding: '0.75rem',
+    borderRadius: '0.375rem',
+    fontFamily: 'monospace',
+    fontSize: '0.875rem',
+    overflowX: 'auto',
+    margin: '0.5rem 0',
+    lineHeight: 1.5,
+};
 
 // Mock chat data
 const mockMessages = [
@@ -114,6 +90,8 @@ export default function Deal() {
   const messagesRef = useRef<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState('');
+  const [isCodeBlockActive, setIsCodeBlockActive] = useState(false);
+  const [isCodeBlock, setIsCodeBlock] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,11 +100,12 @@ export default function Deal() {
   const [ratingScore, setRatingScore] = useState('');
   const [chatWidth, setChatWidth] = useState(400);
   const [loading, setLoading] = useState(true);
-  
+  const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
+
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
-  
+
   // Set initial chat width based on window size
   useEffect(() => {
     const handleResize = () => {
@@ -179,10 +158,38 @@ export default function Deal() {
   };
   }, [deal.id, isInitiator]);
 
-  const handleSendMessage = async (content?: string) => {
-    const messageContent = content || message.trim();
-    if (!messageContent && !previewUrl) return;
+  const toggleCodeBlock = () => {
+    if (!message.trim()) {
+      // If message is empty, add code block markers with cursor in the middle
+      setMessage('```\n\n```');
+    } else if (message.startsWith('```') && message.endsWith('```')) {
+      // If already a code block, remove the markers
+      const content = message.slice(3, -3).trim();
+      setMessage(content);
+    } else {
+      // Wrap selection or entire message in code block
+      const selectionStart = (document.activeElement as HTMLInputElement).selectionStart || 0;
+      const selectionEnd = (document.activeElement as HTMLInputElement).selectionEnd || 0;
+      const beforeSelection = message.substring(0, selectionStart);
+      const selectedText = message.substring(selectionStart, selectionEnd);
+      const afterSelection = message.substring(selectionEnd);
+      
+      if (selectionStart !== selectionEnd) {
+        // Wrap selected text in code block
+        setMessage(`${beforeSelection}\`\`\`\n${selectedText}\n\`\`\`${afterSelection}`);
+      } else {
+        // Wrap entire message in code block
+        setMessage(`\`\`\`\n${message}\n\`\`\``);
+      }
+    }
+  };
 
+  const handleSendMessage = async () => {
+    if ((!message.trim() && !previewUrl) || isUploading) return;
+    
+    const messageContent = message.trim();
+    const isCodeBlock = messageContent.startsWith('```') && messageContent.endsWith('```');
+    
     try {
       setIsUploading(true);
       
@@ -190,7 +197,11 @@ export default function Deal() {
         // Handle file upload with FormData
         const formData = new FormData();
         formData.append('attachment', fileInputRef.current.files[0]);
-        if (messageContent) formData.append('content', messageContent);
+        if (messageContent) {
+          formData.append('content', messageContent);
+        }
+        // Convert boolean to 1 or 0 for form data
+        formData.append('is_code_block', isCodeBlock ? '1' : '0');
         
         const response = await fetch(route('deals.messages.store', { deal: deal.id }), {
           method: 'POST',
@@ -213,18 +224,22 @@ export default function Deal() {
         setPreviewUrl(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setMessage('');
+        setIsCodeBlock(false);
       } else if (messageContent) {
         // Handle text message with JSON
         const response = await fetch(route('deals.messages.store', { deal: deal.id }), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json',
           },
           credentials: 'same-origin',
-          body: JSON.stringify({ content: messageContent }),
+          body: JSON.stringify({ 
+            content: messageContent,
+            is_code_block: isCodeBlock 
+          }),
         });
 
         const result = await response.json();
@@ -235,6 +250,7 @@ export default function Deal() {
         
         setMessages(prev => [...prev, result.message]);
         setMessage('');
+        setIsCodeBlock(false);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -328,7 +344,41 @@ export default function Deal() {
     }
   };
 
-  const handleReport = () => {
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(route('deals.messages.destroy', { 
+        deal: deal.id, 
+        message: messageId 
+      }), {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+        },
+        credentials: 'same-origin',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to delete message');
+      }
+
+      // Update local state to remove the message
+      setMessages(prev => prev.filter(msg => msg?.id !== messageId));
+      toast.success('Message deleted');
+    } catch (error: any) {
+      console.error('Error deleting message:', error);
+      toast.error(error?.message || 'Failed to delete message');
+    }
+  };
+
+  const handleReport = async () => {
     if (reportReason.trim() === '') return;
     router.post(route('deals.report', deal.id), { reason: reportReason });
   };
@@ -647,37 +697,133 @@ export default function Deal() {
                     No messages yet. Start the conversation!
           </div>
                 ) : (
-                  messages.filter(Boolean).map((msg) => {
-                    if (!msg) return null;
-                    
-                    const currentUserId = isInitiator ? deal.initiator.id : deal.acceptor.id;
-                    const isCurrentUser = msg.user_id === currentUserId;
-                    
-                    return (
-                <div 
-                  key={msg.id} 
-                        className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-                >
-                        <div className={`max-w-[80%] rounded-lg p-3 ${
-                          isCurrentUser
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted'
-                        }`}>
-                          {msg.content && <p className="text-sm mb-2">{msg.content}</p>}
+                  [...messages] // Create a copy of the messages array
+                    .filter((msg): msg is Message => Boolean(msg))
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Sort by date ascending
+                    .map((msg) => {
+                      console.log('Rendering message:', { 
+                        id: msg.id, 
+                        is_code_block: msg.is_code_block,
+                        content: msg.content?.substring(0, 50) + '...' 
+                      });
+                      
+                      // Check if the message was sent by the current user
+                      const isCurrentUser = msg.user_id === auth.user.id;
+                      const isCodeBlock = msg.is_code_block || (msg.content?.startsWith('```') && msg.content.endsWith('```'));
+                      
+                      return (
+                        <div 
+                          key={msg.id} 
+                          className={`relative group flex ${isCurrentUser ? 'justify-end' : 'justify-start'} px-2`}
+                        >
+                          {isCurrentUser && (
+                            <div key={`delete-${msg.id}`} className="absolute -left-8 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacts">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteMessage(msg.id);
+                                }}
+                                className="p-1.5 text-muted-foreground hover:text-destructive rounded-full hover:bg-muted transition-colors z-10"
+                                title="Delete message"
+                                style={{
+                                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                                  width: '24px',
+                                  height: '24px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        <div 
+                          className={`relative max-w-[80%] rounded-lg p-3 ${
+                            isCurrentUser
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted'
+                          }`}
+                        >
+                          {msg.content && (
+                            <div className="text-sm mb-2">
+                              {isCodeBlock ? (
+                                <div className="rounded-md overflow-hidden my-2">
+                                  <div className="relative rounded-md overflow-hidden">
+                                    <pre className="m-0 p-0">
+                                      <SyntaxHighlighter 
+                                        language="javascript"
+                                        style={vscDarkPlus}
+                                        customStyle={{
+                                          margin: 0,
+                                          padding: '1rem',
+                                          fontSize: '0.875rem',
+                                          lineHeight: '1.5',
+                                          backgroundColor: '#1e1e1e',
+                                          borderRadius: '0.375rem',
+                                          whiteSpace: 'pre-wrap',
+                                          wordBreak: 'break-word',
+                                        }}
+                                        codeTagProps={{
+                                          style: {
+                                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                                            backgroundColor: 'transparent',
+                                            display: 'block',
+                                            overflowX: 'auto',
+                                          },
+                                        }}
+                                        wrapLines={true}
+                                        wrapLongLines={true}
+                                        showLineNumbers={false}
+                                      >
+                                        {msg.content ? 
+                                          msg.content
+                                            .replace(/^```(?:[\s\S]*?\n)?|```$/g, '') // Remove code block markers
+                                            .replace(/\t/g, '  ') // Convert tabs to 2 spaces
+                                            .trim() // Remove extra whitespace
+                                          : ''
+                                        }
+                                      </SyntaxHighlighter>
+                                    </pre>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const code = msg.content
+                                          ? msg.content
+                                              .replace(/^```(?:[\s\S]*?\n)?|```$/g, '')
+                                              .trim()
+                                          : '';
+                                        navigator.clipboard.writeText(code);
+                                        toast.success('Code copied to clipboard');
+                                      }}
+                                      className="absolute top-2 right-2 p-1.5 rounded bg-gray-800/80 hover:bg-gray-700/80 transition-colors border border-gray-600/50 shadow-sm"
+                                      title="Copy code"
+                                    >
+                                      <Copy className="h-3.5 w-3.5 text-gray-300" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                              )}
+                            </div>
+                          )}
                           
                           {msg.attachment_path && (
                             <div className={`mt-2 rounded-md overflow-hidden border ${
                               isCurrentUser ? 'border-white/20' : 'border-border'
                             }`}>
                               <a 
-                                href={msg.attachment_path.startsWith('http') ? msg.attachment_path : `/storage/${msg.attachment_path}`}
+                                href={msg.attachment_path && msg.attachment_path.startsWith('http')
+                                  ? msg.attachment_path
+                                  : msg.attachment_path && `/storage/${msg.attachment_path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 p-2 hover:bg-black/10 transition-colors"
                                 download
                               >
                                 <div className="flex-shrink-0">
-                                  {getFileIcon(msg.mime_type)}
+                                  {getFileIcon(msg.mime_type || '')}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm truncate">
@@ -700,6 +846,21 @@ export default function Deal() {
                                     alt={msg.attachment_name || 'Image attachment'}
                                     className="max-w-full max-h-64 object-contain mx-auto"
                                   />
+                                </div>
+                              )}
+                              
+                              {msg.mime_type?.startsWith('video/') && (
+                                <div className="relative mt-2">
+                                  <video
+                                    controls
+                                    className="max-w-full max-h-64 mx-auto rounded-md"
+                                  >
+                                    <source 
+                                      src={msg.attachment_path.startsWith('http') ? msg.attachment_path : `/storage/swaps/videos/${msg.attachment_path.split('/').pop()}`}
+                                      type={msg.mime_type}
+                                    />
+                                    Your browser does not support the video tag.
+                                  </video>
                                 </div>
                               )}
                             </div>
@@ -775,40 +936,58 @@ export default function Deal() {
                 )}
                 
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
+                  <div className="relative flex-1 flex items-end gap-2">
+                    <Textarea
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
                       placeholder="Type your message..."
-                      className="min-h-[40px] pr-12"
+                      className={`min-h-[80px] pr-24 resize-y ${isCodeBlockActive ? 'font-mono text-sm' : ''}`}
                       disabled={isUploading}
                     />
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      id="file-upload"
-                      className="sr-only"
-                      onChange={handleFileChange}
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleCodeBlock();
+                          setIsCodeBlockActive(!isCodeBlockActive);
+                        }}
+                        className={`p-1.5 rounded-md ${
+                          isCodeBlockActive 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'text-muted-foreground hover:bg-muted'
+                        }`}
+                        title="Code block"
+                      >
+                        <Code className="h-4 w-4" />
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        id="file-upload"
+                        className="sr-only"
+                        onChange={handleFileChange}
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                      />
                       <label 
                         htmlFor="file-upload" 
-                        className={`cursor-pointer rounded-full p-2 transition-colors ${
+                        className={`cursor-pointer p-1.5 rounded-md transition-colors ${
                           isUploading 
                             ? 'text-muted-foreground' 
-                            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+                            : 'text-foreground hover:bg-muted'
                         }`}
                         title={isUploading ? 'Uploading...' : 'Attach file'}
                       >
                         {isUploading ? (
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                         ) : (
-                          <>
-                            <Paperclip className="h-4 w-4" />
-                            <span className="sr-only">Attach file</span>
-                          </>
+                          <Paperclip className="h-4 w-4" />
                         )}
                       </label>
                     </div>
@@ -816,7 +995,8 @@ export default function Deal() {
                   <Button 
                     onClick={() => handleSendMessage()}
                     disabled={(!message.trim() && !previewUrl) || isUploading}
-                    className="h-10 w-10 p-0"
+                    className="h-10 w-10 p-0 flex-shrink-0"
+                    size="icon"
                   >
                     {isUploading ? (
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

@@ -24,10 +24,14 @@ export function PostMedia({ image, video }: PostMediaProps) {
       )}
 
       {video && (
-        <div className="rounded-md overflow-hidden border mb-3">
-          <div className="aspect-video bg-muted flex items-center justify-center">
-            <span className="text-muted-foreground">Video: {video}</span>
-          </div>
+        <div className="rounded-md overflow-hidden border mb-3 max-w-3xl mx-auto">
+          <video
+            controls
+            className="w-full aspect-video bg-black"
+            src={video.startsWith('http') ? video : `/storage/${video}`}
+          >
+            Your browser does not support the video tag.
+          </video>
         </div>
       )}
     </>

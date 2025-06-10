@@ -47,9 +47,21 @@ class MySwapController extends Controller
         $stats = [
             'total_swaps' => Swap::where('user_id', $user->id)->count(),
             'active_swaps' => Swap::where('user_id', $user->id)->where('status', 'active')->count(),
-            'completed_deals' => SwapDeal::whereHas('swap', function($q) use ($user) {
-                $q->where('user_id', $user->id);
-            })->where('status', 'completed')->count(),
+            'completed_deals' => SwapDeal::where(function($query) use ($user) {
+                $query->where('initiator_id', $user->id)
+                      ->orWhere('acceptor_id', $user->id);
+            })->where('initiator_accepted', true)
+              ->where('acceptor_accepted', true)
+              ->count(),
+            
+            // Debug info
+            'debug_deals' => SwapDeal::where(function($query) use ($user) {
+                $query->whereHas('swap', function($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->orWhereHas('acceptor', function($q) use ($user) {
+                    $q->where('id', $user->id);
+                });
+            })->get(['id', 'status', 'swap_id', 'acceptor_id'])->toArray(),
             'total_likes' => SwapInteraction::whereHas('swap', function($q) use ($user) {
                 $q->where('user_id', $user->id);
             })->where('type', 'like')->count(),

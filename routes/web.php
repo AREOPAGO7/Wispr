@@ -60,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/deals/{deal}/rate', [SwapDealController::class, 'rate'])->name('deals.rate');
     Route::post('/deals/{deal}/messages', [DealMessageController::class, 'store'])->name('deals.messages.store');
     Route::get('/deals/{deal}/messages', [DealMessageController::class, 'index'])->name('deals.messages.index');
+    Route::delete('/deals/{deal}/messages/{message}', [DealMessageController::class, 'destroy'])->name('deals.messages.destroy');
 });
 
 // My Swaps routes

@@ -17,12 +17,21 @@ class DealMessageController extends Controller
             $validated = $request->validate([
                 'content' => 'nullable|string|max:1000',
                 'attachment' => 'nullable|file|max:10240', // 10MB max
+                'is_code_block' => ['nullable', function ($attribute, $value, $fail) {
+                    if (!in_array($value, ['0', '1', 0, 1, true, false, 'true', 'false'], true)) {
+                        $fail('The '.$attribute.' field must be true or false.');
+                    }
+                }],
             ]);
+
+            // Convert various truthy/falsy values to boolean
+            $isCodeBlock = filter_var($request->input('is_code_block', false), FILTER_VALIDATE_BOOLEAN);
 
             $messageData = [
                 'deal_id' => $deal->id,
                 'user_id' => auth()->id(),
                 'content' => $validated['content'] ?? null,
+                'is_code_block' => $isCodeBlock ?? false,
             ];
 
             if ($request->hasFile('attachment')) {
@@ -59,12 +68,48 @@ class DealMessageController extends Controller
     public function index(SwapDeal $deal)
     {
         $this->authorize('view', $deal);
-
-        $messages = DealMessage::where('deal_id', $deal->id)
+        
+        $messages = $deal->messages()
             ->with('user')
-            ->latest()
+            ->orderBy('created_at', 'asc')
             ->get();
-
+            
         return response()->json($messages);
     }
-} 
+    
+    /**
+     * Delete a message
+     *
+     * @param  \App\Models\SwapDeal  $deal
+     * @param  \App\Models\DealMessage  $message
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy(SwapDeal $deal, DealMessage $message)
+    {
+        $this->authorize('view', $deal);
+        
+        // Ensure the message belongs to the deal
+        if ($message->deal_id !== $deal->id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Message not found in this deal'
+            ], 404);
+        }
+        
+        // Only the message sender can delete their own message
+        if ($message->user_id !== auth()->id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'You can only delete your own messages'
+            ], 403);
+        }
+        
+        // Delete the message
+        $message->delete();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Message deleted successfully'
+        ]);
+    }
+}
