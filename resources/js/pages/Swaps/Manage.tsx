@@ -346,7 +346,7 @@ export default function Manage({ auth, swap, allTags }: SwapManageProps) {
                                                 className="w-full text-white/80"
                                                 onClick={() => {
                                                     if (confirm('Are you sure you want to delete this swap? This action cannot be undone.')) {
-        router.delete(route('my-swaps.destroy', swap.id));
+        router.delete(route('my-swaps.destroy', swap.uid));
                                                     }
                                                 }}
                                             >

@@ -64,16 +64,30 @@ export default function Home() {
     const page = usePage<PageProps>();
     const { swaps = { data: [] }, filters = {} } = page.props;
 
-    // Sort swaps for different tabs
-    const hotSwaps = [...(swaps.data || [])].sort((a, b) => 
+    // Filter swaps based on search query
+    const filterSwaps = (swapsList: Swap[]) => {
+        if (!filters?.search) return swapsList;
+        
+        const searchTerm = filters.search.toLowerCase();
+        return swapsList.filter(swap => 
+            swap.title.toLowerCase().includes(searchTerm) ||
+            swap.description.toLowerCase().includes(searchTerm) ||
+            swap.offering.toLowerCase().includes(searchTerm) ||
+            swap.seeking.toLowerCase().includes(searchTerm) ||
+            swap.tags.some(tag => tag.name.toLowerCase().includes(searchTerm))
+        );
+    };
+
+    // Sort and filter swaps for different tabs
+    const hotSwaps = filterSwaps([...(swaps.data || [])]).sort((a, b) => 
         (b.likes_count + b.reposts_count) - (a.likes_count + a.reposts_count)
     );
 
-    const newSwaps = [...(swaps.data || [])].sort((a, b) => 
+    const newSwaps = filterSwaps([...(swaps.data || [])]).sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    const topSwaps = [...(swaps.data || [])].sort((a, b) => 
+    const topSwaps = filterSwaps([...(swaps.data || [])]).sort((a, b) => 
         b.likes_count - a.likes_count
     );
 

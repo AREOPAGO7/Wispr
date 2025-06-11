@@ -200,6 +200,15 @@ class SwapController extends Controller
     {
         $this->authorize('delete', $swap);
 
+        // Mark all associated deals as 'cancelled' if they're not already completed
+        $swap->deals()
+            ->whereNotIn('status', ['completed'])
+            ->update([
+                'status' => 'cancelled',
+                'report_reason' => 'Swap was deleted by the owner',
+                'updated_at' => now()
+            ]);
+
         if ($swap->image) {
             Storage::disk('public')->delete($swap->image);
         }
@@ -209,7 +218,7 @@ class SwapController extends Controller
 
         $swap->delete();
 
-        return redirect()->route('home')->with('success', 'Swap deleted successfully!');
+        return redirect()->route('home')->with('success', 'Swap and its associated deals have been cancelled successfully!');
     }
 
     public function like(Request $request, Swap $swap)
